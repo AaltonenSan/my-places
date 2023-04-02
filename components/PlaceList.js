@@ -26,12 +26,24 @@ export default function PlaceList({ navigation }) {
     }, null, null)
   }
 
-  const saveItem = () => {
-    db.transaction(tx => {
-      tx.executeSql('INSERT INTO place (address) values (?);', [address])
-    }, null, updateList)
-    setAddress('')
-    Keyboard.dismiss()
+  // Check that address is found before saving it
+  const saveItem = async () => {
+    try {
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${address}&key=${GOOGLE_KEY}`)
+      const coordinates = await response.json()
+      if (coordinates.status === 'ZERO_RESULTS') {
+        throw new Error()
+      }
+
+      db.transaction(tx => {
+        tx.executeSql('INSERT INTO place (address) values (?);', [address])
+      }, null, updateList)
+
+      setAddress('')
+      Keyboard.dismiss()
+    } catch (error) {
+      Alert.alert('Address not found')
+    }
   }
 
   const deleteItem = (id) => {
@@ -53,7 +65,7 @@ export default function PlaceList({ navigation }) {
 
   /*
    Fetching the coordinates here so that if address is not found
-   the view won't change to Map
+   for some reason, the view won't change to Map
   */
   const showOnMap = async (address) => {
     try {
